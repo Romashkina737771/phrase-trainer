@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Phrase Trainer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Phrases">
+<meta name="theme-color" content="#111827">
+<style>
+:root{--bg:#f8fafc;--card:#fff;--text:#0f172a;--muted:#64748b;--line:#e2e8f0;--dark:#111827;--darkt:#fff;--primary:#2563eb;--primaryt:#fff;
+--green:#15803d;--greenbg:#dcfce7;--amber:#b45309;--amberbg:#fef3c7;--blue:#1d4ed8;--bluebg:#dbeafe;--gray:#374151;--graybg:#f1f5f9;--danger:#dc2626;--shadow:0 1px 2px rgba(15,23,42,.06)}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1120;--card:#111827;--text:#e5e7eb;--muted:#94a3b8;--line:#1f2937;--dark:#e5e7eb;--darkt:#0b1120;--primary:#3b82f6;
+--green:#86efac;--greenbg:#14532d;--amber:#fcd34d;--amberbg:#451a03;--blue:#bfdbfe;--bluebg:#1e3a8a;--gray:#d1d5db;--graybg:#1f2937;--danger:#f87171;--shadow:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%;line-height:1.4}
+#app{max-width:860px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom))}
+h1{font-size:22px;margin:0;line-height:1.2;word-break:break-word}
+h2{font-size:19px;margin:0 0 12px}
+h3{font-size:17px;margin:0;word-break:break-word}
+p{margin:6px 0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.row{display:flex;align-items:center}.col{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.wrap{flex-wrap:wrap}.gap{gap:8px}.between{justify-content:space-between}.end{justify-content:flex-end}.start{align-items:flex-start}.grow{flex:1;min-width:0}
+.muted{color:var(--muted)}.sm{font-size:13px}.hidden{display:none!important}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.btn{border:1px solid transparent;border-radius:10px;padding:10px 16px;min-height:42px;font-weight:600;font-size:15px;background:var(--graybg);display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.primary{background:var(--primary);color:var(--primaryt)}
+.btn.dark{background:var(--dark);color:var(--darkt)}
+.btn.green{background:#16a34a;color:#fff}
+.btn.ghost{background:var(--card);border-color:var(--line)}
+.btn.danger{color:var(--danger)}
+.btn.sm{padding:7px 12px;min-height:36px;font-size:14px}
+.btn.xs{padding:5px 10px;min-height:32px;font-size:13px}
+.btn.full{width:100%}
+.btn.big{min-height:52px;font-size:16px;flex:1}
+.icon{background:none;border:none;color:var(--muted);font-size:17px;min-width:36px;min-height:36px;border-radius:8px}
+.icon:hover{background:var(--graybg)}
+.link{background:none;border:none;color:var(--primary);font-weight:600;padding:0 4px;text-decoration:underline}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.set-card{display:flex;flex-direction:column;gap:10px}
+.set-card .grow{cursor:pointer}
+.desc{color:var(--muted);font-size:13px;margin-top:4px}
+.counts{display:flex;flex-wrap:wrap;gap:4px 10px;color:var(--muted)}
+.c-mastered{color:var(--green)}.c-training{color:var(--amber)}
+.bar{height:6px;background:var(--graybg);border-radius:9px;overflow:hidden}.bar>div{height:100%;background:#16a34a}
+.notice{background:var(--amberbg);color:var(--amber);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:14px}
+.empty{text-align:center;color:var(--muted);padding:40px 10px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
+.stat{border-radius:12px;padding:10px 4px;text-align:center;background:var(--graybg)}
+.stat b{display:block;font-size:20px}.stat span{font-size:11px;color:var(--muted)}
+.s-new b{color:var(--gray)}.s-training{background:var(--amberbg)}.s-training b{color:var(--amber)}.s-mastered{background:var(--greenbg)}.s-mastered b{color:var(--green)}.s-rep{background:var(--bluebg)}.s-rep b{color:var(--blue)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:12px 0 6px;-webkit-overflow-scrolling:touch}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:13px;white-space:nowrap;min-height:34px}
+.chip.on{background:var(--dark);color:var(--darkt);border-color:var(--dark)}
+.chip .cnt{opacity:.6;margin-left:2px}
+.list{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.phrase .en{font-weight:600;font-size:16px;word-break:break-word}
+.phrase .ru{color:var(--muted);margin-top:2px;word-break:break-word}
+.phrase .note{color:var(--muted);font-style:italic;font-size:13px;margin-top:2px;word-break:break-word}
+.phrase .meta{margin-top:8px;flex-wrap:wrap}
+.play{flex:none;width:42px;height:42px;border-radius:50%;border:none;background:var(--dark);color:var(--darkt);font-size:15px;display:flex;align-items:center;justify-content:center}
+.play.on{background:var(--primary);color:#fff}
+.badge{border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;border:none;display:inline-block}
+select.badge{-webkit-appearance:none;appearance:none;padding-right:22px;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 11px) 52%,calc(100% - 7px) 52%;background-size:4px 4px;background-repeat:no-repeat;min-height:28px}
+.b-new{background-color:var(--graybg);color:var(--gray)}.b-training{background-color:var(--amberbg);color:var(--amber)}.b-almost_known{background-color:var(--bluebg);color:var(--blue)}.b-mastered{background-color:var(--greenbg);color:var(--green)}
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0}
+@media (min-width:640px){.overlay{align-items:center;padding:20px}}
+.modal{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+@media (min-width:640px){.modal{border-radius:16px}}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:12px}
+label.inline{display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px}
+input[type=text],input[type=number],input:not([type]),textarea,select.field{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:16px}
+textarea{resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom));background:#111827;color:#fff;border-radius:12px;padding:12px 16px;display:flex;gap:14px;align-items:center;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:92vw;font-size:14px}
+.toast .link{color:#93c5fd}
+/* training */
+.tbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.tbar .title{font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.settings{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.settings select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:15px}
+.seg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 16px;min-height:220px;display:flex;flex-direction:column;justify-content:center}
+.tcard .pos{font-weight:600;color:var(--muted)}.tcard .rep{color:var(--primary);font-weight:600}
+.t-en{font-size:26px;font-weight:700;text-align:center;margin:22px 0 10px;word-break:break-word}
+.t-ru{text-align:center;color:var(--muted);font-size:17px}
+.t-note{text-align:center;color:var(--muted);font-style:italic;font-size:14px;margin-top:8px}
+.done{text-align:center}
+.controls{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.controls .row{gap:10px}
+.hf{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:4px}
+.hf .lbl{font-size:13px;color:var(--muted);margin:8px 0 4px}
+.hf input[type=number]{width:80px;display:inline-block;margin:0;padding:6px 8px;font-size:15px}
+.hfstatus{text-align:center;font-weight:600;color:var(--primary);padding:6px 0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div id="toast" class="toast hidden"></div>
+<input type="file" id="file-input" accept=".json,application/json" hidden>
+<script>
+'use strict';
+/* ---------- data ---------- */
+const STORE_KEY = 'ipt2-data';
+const STATUSES = ['new', 'training', 'almost_known', 'mastered'];
+const STATUS_LABEL = { new: 'New', training: 'Training', almost_known: 'Almost known', mastered: 'Mastered' };
+const DIFFS = ['hard', 'medium', 'easy'];
+const DEFAULT_SETTINGS = { voice: '', rate: 0.95, reps: 10, pause: 4, end: 'repeat', includeMastered: false };
+const SPEEDS = [{ label: 'Slow', value: 0.8 }, { label: 'Normal', value: 0.95 }, { label: 'Fast', value: 1.05 }];
+
+const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = sel => document.querySelector(sel);
+
+let db = loadDb();
+
+function loadDb() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      d.sets = Array.isArray(d.sets) ? d.sets : [];
+      d.settings = { ...DEFAULT_SETTINGS, ...(d.settings || {}) };
+      return d;
+    }
+  } catch (e) { console.error('load failed', e); }
+  return { version: 2, sets: [], settings: { ...DEFAULT_SETTINGS }, lastBackup: null };
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); return true; }
+  catch (e) { alert('Could not save: browser storage is full or blocked. Please export a backup.'); return false; }
+}
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+
+function normPhrase(p, freshId) {
+  return {
+    id: (!freshId && typeof p.id === 'string' && p.id) ? p.id : uid(),
+    textEn: String(p.textEn || '').trim(),
+    translationRu: String(p.translationRu || '').trim(),
+    noteRu: String(p.noteRu || '').trim(),
+    repeatTarget: Math.max(1, parseInt(p.repeatTarget, 10) || 10),
+    repeatCount: Math.max(0, parseInt(p.repeatCount, 10) || 0),
+    status: STATUSES.includes(p.status) ? p.status : 'new',
+    difficulty: DIFFS.includes(p.difficulty) ? p.difficulty : 'medium',
+    createdAt: p.createdAt || new Date().toISOString()
+  };
+}
+function normSet(s, freshId) {
+  return {
+    id: (!freshId && typeof s.id === 'string' && s.id) ? s.id : uid(),
+    title: String(s.title || '').trim() || 'Untitled set',
+    topic: String(s.topic || '').trim(),
+    description: String(s.description || '').trim(),
+    createdAt: s.createdAt || new Date().toISOString(),
+    phrases: (Array.isArray(s.phrases) ? s.phrases : []).map(p => normPhrase(p, freshId)).filter(p => p.textEn)
+  };
+}
+const getSet = id => db.sets.find(s => s.id === id);
+function findPhrase(pid) {
+  for (const s of db.sets) { const p = s.phrases.find(x => x.id === pid); if (p) return { set: s, phrase: p }; }
+  return null;
+}
+function stats(set) {
+  const c = { total: set.phrases.length, new: 0, training: 0, almost_known: 0, mastered: 0, repeats: 0 };
+  for (const p of set.phrases) { c[p.status]++; c.repeats += p.repeatCount; }
+  return c;
+}
+/* One clear rule: 1st repeat -> Training, reaching the target -> Almost known. Mastered is only set by you. */
+function addRepeat(p) {
+  p.repeatCount++;
+  if (p.status === 'new') p.status = 'training';
+  if (p.status === 'training' && p.repeatCount >= p.repeatTarget) p.status = 'almost_known';
+  save();
+}
+function statusWithoutMastered(p) {
+  return p.repeatCount >= p.repeatTarget ? 'almost_known' : (p.repeatCount > 0 ? 'training' : 'new');
+}
+
+/* ---------- speech ---------- */
+const synth = window.speechSynthesis || null;
+let voices = [];
+let speakToken = 0;
+let speakingPid = null;
+function loadVoices() {
+  if (!synth) return;
+  voices = synth.getVoices().filter(v => /^en/i.test(v.lang));
+  if (voices.length && !voices.find(v => v.name === db.settings.voice)) {
+    const pref = ['samantha', 'daniel', 'karen', 'moira', 'serena', 'tessa', 'google uk english', 'google us english'];
+    const v = pref.map(n => voices.find(x => x.name.toLowerCase().includes(n) && x.localService)).find(Boolean)
+      || voices.find(x => x.localService) || voices[0];
+    db.settings.voice = v.name; save();
+  }
+  refreshVoiceSelect();
+}
+if (synth) {
+  loadVoices();
+  if (synth.addEventListener) synth.addEventListener('voiceschanged', loadVoices); else synth.onvoiceschanged = loadVoices;
+}
+function speak(text, onEnd) {
+  if (!synth) { if (onEnd) setTimeout(onEnd, 1200); return; }
+  const my = ++speakToken;
+  const busy = synth.speaking || synth.pending;
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const v = voices.find(x => x.name === db.settings.voice);
+  if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-GB'; }
+  u.rate = Number(db.settings.rate) || 0.95;
+  let done = false, fallback = null;
+  const finish = () => {
+    if (done) return; done = true; clearTimeout(fallback);
+    if (my === speakToken && onEnd) onEnd();
+  };
+  u.onend = finish; u.onerror = finish;
+  // safety net: some browsers never fire onend - never let hands-free stall
+  fallback = setTimeout(finish, 2500 + text.length * 110 / u.rate);
+  window.__lastUtterance = u; // keep a reference (Chrome GC bug)
+  if (busy) setTimeout(() => { if (my === speakToken) synth.speak(u); }, 80); else synth.speak(u);
+}
+function stopSpeech() { speakToken++; if (synth) synth.cancel(); }
+
+/* ---------- wake lock (keeps screen on in hands-free) ---------- */
+let wake = null;
+async function requestWake() {
+  try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (e) {}
+}
+function releaseWake() { try { if (wake) wake.release(); } catch (e) {} wake = null; }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && T && T.hf.active) requestWake();
+});
+
+/* ---------- router ---------- */
+function route() {
+  const h = location.hash.replace(/^#\/?/, '').split('/');
+  return { name: h[0] || 'home', id: h[1] ? decodeURIComponent(h[1]) : null, extra: h[2] || null };
+}
+function go(hash) { if (location.hash === hash) render(); else location.hash = hash; }
+window.addEventListener('hashchange', () => { leaveTraining(); stopSpeech(); render(); window.scrollTo(0, 0); });
+function render() {
+  const r = route();
+  closeModal();
+  if (r.name === 'set') { const s = getSet(r.id); if (!s) return go('#/'); $('#app').innerHTML = renderSet(s); }
+  else if (r.name === 'train') { const s = getSet(r.id); if (!s) return go('#/'); startTraining(s, r.extra === 'hf'); }
+  else { $('#app').innerHTML = renderHome(); }
+}
+function rerender() {
+  if (route().name === 'train') return;
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+}
+
+/* ---------- home ---------- */
+function renderHome() {
+  const total = db.sets.reduce((a, s) => a + s.phrases.length, 0);
+  const days = db.lastBackup ? Math.floor((Date.now() - new Date(db.lastBackup).getTime()) / 864e5) : null;
+  const note = (total > 0 && (days === null || days >= 7))
+    ? `<div class="notice">${days === null ? 'No backup yet.' : `Last backup ${days} days ago.`} <button class="link" data-act="export">Export now</button></div>` : '';
+  return `<header class="top"><h1>Phrase Trainer</h1>
+    <div class="row gap wrap"><button class="btn ghost sm" data-act="import">Import</button><button class="btn ghost sm" data-act="export">Export</button><button class="btn primary sm" data-act="new-set">+ New set</button></div></header>
+    ${note}
+    ${db.sets.length ? `<div class="grid">${db.sets.map(setCard).join('')}</div>`
+      : `<div class="empty"><p><b>No sets yet.</b></p><p>Create a set, or import your backup file (Import button).</p></div>`}`;
+}
+function setCard(s) {
+  const c = stats(s); const pct = c.total ? Math.round(c.mastered / c.total * 100) : 0; const prog = c.training + c.almost_known;
+  return `<div class="card set-card">
+    <div class="row between start gap"><div class="grow" data-act="open-set" data-id="${esc(s.id)}"><h3>${esc(s.title)}</h3>
+      ${s.topic ? `<div class="muted sm">${esc(s.topic)}</div>` : ''}${s.description ? `<p class="desc">${esc(s.description)}</p>` : ''}</div>
+      <div class="row"><button class="icon" title="Edit set" data-act="edit-set" data-id="${esc(s.id)}">✎</button><button class="icon" title="Delete set" data-act="del-set" data-id="${esc(s.id)}">✕</button></div></div>
+    <div class="counts sm"><span>${c.total} phrases</span>${c.mastered ? `<span class="c-mastered">${c.mastered} mastered</span>` : ''}${prog ? `<span class="c-training">${prog} in progress</span>` : ''}${c.new ? `<span>${c.new} new</span>` : ''}</div>
+    <div class="bar"><div style="width:${pct}%"></div></div>
+    <button class="btn dark full" data-act="open-set" data-id="${esc(s.id)}">Open</button></div>`;
+}
+
+/* ---------- set page ---------- */
+let setFilter = 'all';
+function statBox(n, label, cls) { return `<div class="stat ${cls}"><b>${n}</b><span>${label}</span></div>`; }
+function renderSet(s) {
+  const c = stats(s);
+  const list = setFilter === 'all' ? s.phrases : s.phrases.filter(p => p.status === setFilter);
+  return `<header class="top"><div class="row gap grow"><button class="icon" title="Back" data-act="home">←</button><div class="grow"><h1>${esc(s.title)}</h1>${s.topic ? `<div class="muted sm">${esc(s.topic)}</div>` : ''}</div>
+      <button class="icon" title="Edit set" data-act="edit-set" data-id="${esc(s.id)}">✎</button></div></header>
+    <div class="stats">${statBox(c.total, 'Total', '')}${statBox(c.new, 'New', 's-new')}${statBox(c.training + c.almost_known, 'In progress', 's-training')}${statBox(c.mastered, 'Mastered', 's-mastered')}${statBox(c.repeats, 'Repeats', 's-rep')}</div>
+    <div class="row wrap gap">
+      <button class="btn dark" data-act="train" data-id="${esc(s.id)}" ${c.total ? '' : 'disabled'}>▶ Train</button>
+      <button class="btn ghost" data-act="listen-all" data-id="${esc(s.id)}" ${c.total ? '' : 'disabled'}>🎧 Hands-free</button>
+      <button class="btn primary" data-act="add-phrase">+ Add phrase</button>
+      <button class="btn ghost" data-act="bulk">Bulk import</button></div>
+    <div class="chips">${['all', ...STATUSES].map(f => `<button class="chip ${setFilter === f ? 'on' : ''}" data-act="filter" data-f="${f}">${f === 'all' ? 'All' : STATUS_LABEL[f]} <span class="cnt">${f === 'all' ? c.total : c[f]}</span></button>`).join('')}</div>
+    <div class="list">${list.length ? list.map(phraseRow).join('') : '<div class="empty">No phrases here.</div>'}</div>`;
+}
+function phraseRow(p) {
+  const id = esc(p.id);
+  return `<div class="card phrase"><div class="row start gap">
+    <button class="play ${speakingPid === p.id ? 'on' : ''}" title="Listen" data-act="say" data-pid="${id}">▶</button>
+    <div class="grow"><div class="en">${esc(p.textEn)}</div>${p.translationRu ? `<div class="ru">${esc(p.translationRu)}</div>` : ''}${p.noteRu ? `<div class="note">${esc(p.noteRu)}</div>` : ''}
+      <div class="row gap sm meta"><select class="badge b-${p.status}" aria-label="Status" data-change="status" data-pid="${id}">${STATUSES.map(st => `<option value="${st}" ${st === p.status ? 'selected' : ''}>${STATUS_LABEL[st]}</option>`).join('')}</select>
+      <span class="muted">${p.repeatCount} / ${p.repeatTarget} repeats</span>${p.difficulty !== 'medium' ? `<span class="muted">· ${p.difficulty}</span>` : ''}</div></div>
+    <div class="col"><button class="btn ghost xs" data-act="edit-phrase" data-pid="${id}">Edit</button><button class="icon" title="Delete" data-act="del-phrase" data-pid="${id}">✕</button></div></div></div>`;
+}
+
+/* ---------- modals & toast ---------- */
+function openModal(html, onMount) {
+  const root = $('#modal-root');
+  root.innerHTML = `<div class="overlay" data-act="overlay"><div class="modal" role="dialog">${html}</div></div>`;
+  if (onMount) onMount(root.querySelector('.modal'));
+}
+function closeModal() { const r = $('#modal-root'); if (r) r.innerHTML = ''; }
+let toastTimer = null;
+function toast(msg, undoFn) {
+  const t = $('#toast');
+  t.innerHTML = `<span>${esc(msg)}</span>${undoFn ? '<button class="link" id="toast-undo">Undo</button>' : ''}`;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  if (undoFn) t.querySelector('#toast-undo').onclick = () => { clearTimeout(toastTimer); t.classList.add('hidden'); undoFn(); };
+  toastTimer = setTimeout(() => t.classList.add('hidden'), undoFn ? 7000 : 2500);
+}
+
+function setForm(s) {
+  openModal(`<form><h2>${s ? 'Edit set' : 'New set'}</h2>
+    <label>Title *<input name="title" maxlength="150" value="${esc(s && s.title)}" autocomplete="off"></label>
+    <label>Topic / tag<input name="topic" maxlength="80" value="${esc(s && s.topic)}" autocomplete="off"></label>
+    <label>Description<textarea name="description" rows="3">${esc(s && s.description)}</textarea></label>
+    <div class="row end gap"><button type="button" class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary">Save</button></div></form>`, m => {
+    const f = m.querySelector('form').elements; const form = m.querySelector('form');
+    form.onsubmit = e => {
+      e.preventDefault();
+      const title = f.title.value.trim();
+      if (!title) { alert('Please enter a title.'); f.title.focus(); return; }
+      if (s) { s.title = title; s.topic = f.topic.value.trim(); s.description = f.description.value.trim(); }
+      else db.sets.unshift({ id: uid(), title, topic: f.topic.value.trim(), description: f.description.value.trim(), createdAt: new Date().toISOString(), phrases: [] });
+      save(); closeModal(); rerender();
+    };
+  });
+}
+function phraseForm(set, p) {
+  openModal(`<form><h2>${p ? 'Edit phrase' : 'New phrase'}</h2>
+    <label>English *<textarea name="textEn" rows="2">${esc(p && p.textEn)}</textarea></label>
+    <label>Translation<textarea name="translationRu" rows="2">${esc(p && p.translationRu)}</textarea></label>
+    <label>Note / example<textarea name="noteRu" rows="2">${esc(p && p.noteRu)}</textarea></label>
+    <div class="two"><label>Repeat target<input name="repeatTarget" type="number" min="1" max="999" value="${p ? p.repeatTarget : 10}"></label>
+      <label>Difficulty<select class="field" name="difficulty">${DIFFS.map(d => `<option value="${d}" ${(p ? p.difficulty : 'medium') === d ? 'selected' : ''}>${d}</option>`).join('')}</select></label></div>
+    ${p ? `<div class="two"><label>Status<select class="field" name="status">${STATUSES.map(st => `<option value="${st}" ${p.status === st ? 'selected' : ''}>${STATUS_LABEL[st]}</option>`).join('')}</select></label>
+      <label>Repeats done<input name="repeatCount" type="number" min="0" max="99999" value="${p.repeatCount}"></label></div>` : ''}
+    <div class="row end gap"><button type="button" class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary">Save</button></div></form>`, m => {
+    const f = m.querySelector('form').elements; const form = m.querySelector('form');
+    form.onsubmit = e => {
+      e.preventDefault();
+      const textEn = f.textEn.value.trim();
+      if (!textEn) { alert('English phrase is required.'); f.textEn.focus(); return; }
+      const data = { textEn, translationRu: f.translationRu.value.trim(), noteRu: f.noteRu.value.trim(),
+        repeatTarget: Math.max(1, parseInt(f.repeatTarget.value, 10) || 10), difficulty: f.difficulty.value };
+      if (p) { Object.assign(p, data, { status: f.status.value, repeatCount: Math.max(0, parseInt(f.repeatCount.value, 10) || 0) }); }
+      else set.phrases.push(normPhrase(data, true));
+      save(); closeModal(); rerender();
+    };
+  });
+}
+function parseBulk(text) {
+  return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => {
+    const parts = (l.includes('|') ? l.split('|') : l.split('\t')).map(x => x.trim());
+    return { textEn: parts[0] || '', translationRu: parts[1] || '', noteRu: parts.slice(2).join(' | ') };
+  }).filter(x => x.textEn);
+}
+function bulkForm(set) {
+  openModal(`<h2>Bulk import</h2>
+    <p class="muted sm">One phrase per line: <b>English | Translation | Note</b>. Translation and note are optional.</p>
+    <label><textarea id="bulk-text" rows="9" placeholder="I would check the contract. | Я бы проверила контракт. | For contract questions.&#10;I would assess the impact. | Я бы оценила влияние."></textarea></label>
+    <label class="inline"><input type="checkbox" id="bulk-dupes" checked> Skip phrases already in this set</label>
+    <p class="muted sm" id="bulk-count">0 phrases</p>
+    <div class="row end gap"><button type="button" class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary" id="bulk-go">Import</button></div>`, m => {
+    const ta = m.querySelector('#bulk-text'), cnt = m.querySelector('#bulk-count'), dup = m.querySelector('#bulk-dupes');
+    const plan = () => {
+      const rows = parseBulk(ta.value);
+      if (!dup.checked) return { rows, skipped: 0 };
+      const seen = new Set(set.phrases.map(p => p.textEn.toLowerCase()));
+      const out = []; let skipped = 0;
+      for (const r of rows) { const k = r.textEn.toLowerCase(); if (seen.has(k)) { skipped++; continue; } seen.add(k); out.push(r); }
+      return { rows: out, skipped };
+    };
+    const upd = () => { const { rows, skipped } = plan(); cnt.textContent = `${rows.length} phrases to add${skipped ? ` · ${skipped} duplicates skipped` : ''}`; };
+    ta.oninput = upd; dup.onchange = upd;
+    m.querySelector('#bulk-go').onclick = () => {
+      const { rows } = plan();
+      if (!rows.length) { alert('Nothing to import.'); return; }
+      rows.forEach(r => set.phrases.push(normPhrase(r, true)));
+      save(); closeModal(); rerender(); toast(`Added ${rows.length} phrases`);
+    };
+  });
+}
+
+/* ---------- export / import ---------- */
+function exportData() {
+  const data = { app: 'phrase-trainer', version: 2, exportedAt: new Date().toISOString(), sets: db.sets };
+  const json = JSON.stringify(data, null, 1);
+  const name = `phrases-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const blob = new Blob([json], { type: 'application/json' });
+  const mobile = /iPhone|iPad|Android|Mobi/i.test(navigator.userAgent);
+  try {
+    const file = new File([blob], name, { type: 'application/json' });
+    if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: name }).then(markBackup).catch(() => {});
+      return;
+    }
+  } catch (e) {}
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  markBackup();
+}
+function markBackup() { db.lastBackup = new Date().toISOString(); save(); rerender(); toast('Backup saved'); }
+function importFile(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    let data;
+    try { data = JSON.parse(r.result); } catch (e) { alert('This file is not a valid backup (JSON).'); return; }
+    const sets = Array.isArray(data) ? data : data && data.sets;
+    if (!Array.isArray(sets) || !sets.length) { alert('No sets found in this file.'); return; }
+    const clean = sets.map(s => normSet(s, true));
+    const n = clean.reduce((a, s) => a + s.phrases.length, 0);
+    openModal(`<h2>Import backup</h2><p>Found <b>${clean.length}</b> sets and <b>${n}</b> phrases.</p>
+      <p class="muted sm"><b>Add</b> keeps your current sets and adds these. <b>Replace all</b> deletes the current data first.</p>
+      <div class="row end gap wrap"><button class="btn ghost" data-act="close-modal">Cancel</button><button class="btn ghost danger" id="imp-replace">Replace all</button><button class="btn primary" id="imp-add">Add</button></div>`, m => {
+      const finish = () => { save(); closeModal(); go('#/'); toast(`Imported ${clean.length} sets, ${n} phrases`); };
+      m.querySelector('#imp-add').onclick = () => { db.sets = [...clean, ...db.sets]; finish(); };
+      m.querySelector('#imp-replace').onclick = () => {
+        if (db.sets.length && !confirm(`Delete all ${db.sets.length} current sets and replace them with the file?`)) return;
+        db.sets = clean; finish();
+      };
+    });
+  };
+  r.onerror = () => alert('Could not read the file.');
+  r.readAsText(file);
+}
+$('#file-input').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); });
+
+/* ---------- training ---------- */
+let T = null; // session: { setId, queue:[ids], idx, finished, showHf, hf:{active,paused,count}, timer }
+function sortForTraining(phrases, includeMastered) {
+  const so = { new: 0, training: 1, almost_known: 2, mastered: 3 }, dO = { hard: 0, medium: 1, easy: 2 };
+  return phrases.map((p, i) => ({ p, i }))
+    .filter(x => includeMastered || x.p.status !== 'mastered')
+    .sort((a, b) => (so[a.p.status] - so[b.p.status]) || (dO[a.p.difficulty] - dO[b.p.difficulty]) || (a.i - b.i))
+    .map(x => x.p.id);
+}
+function curPhrase() {
+  if (!T || T.finished) return null;
+  const s = getSet(T.setId); const id = T.queue[T.idx];
+  return (s && s.phrases.find(p => p.id === id)) || null;
+}
+function rebuildQueue() {
+  const cur = T.queue[T.idx];
+  T.queue = sortForTraining(getSet(T.setId).phrases, db.settings.includeMastered);
+  const i = T.queue.indexOf(cur);
+  T.idx = i >= 0 ? i : 0;
+  if (i < 0 && T.hf) T.hf.count = 0;
+  T.finished = T.queue.length === 0;
+}
+function startTraining(s, openHf) {
+  T = { setId: s.id, queue: [], idx: 0, finished: false, showHf: !!openHf, hf: { active: false, paused: false, count: 0 }, timer: null };
+  rebuildQueue();
+  $('#app').innerHTML = `<div class="tbar"><button class="icon" title="Back" data-act="back-to-set">←</button><div class="title">${esc(s.title)}</div>
+      <label class="inline sm" style="margin:0"><input type="checkbox" data-change="incl" ${db.settings.includeMastered ? 'checked' : ''}> Include mastered</label></div>
+    <div class="settings">
+      <select id="voice" data-change="voice" aria-label="Voice"></select>
+      <div class="seg"><span class="muted sm">Speed</span>${SPEEDS.map(o => `<button class="chip ${Number(db.settings.rate) === o.value ? 'on' : ''}" data-act="rate" data-v="${o.value}">${o.label}</button>`).join('')}</div>
+    </div>
+    <div class="tcard" id="tcard"></div>
+    <div id="tcontrols"></div>`;
+  refreshVoiceSelect();
+  updateTrain();
+}
+function refreshVoiceSelect() {
+  const sel = document.getElementById('voice'); if (!sel) return;
+  if (!synth) { sel.innerHTML = '<option>Speech is not supported in this browser</option>'; sel.disabled = true; return; }
+  if (!voices.length) { sel.innerHTML = '<option>Loading voices…</option>'; return; }
+  sel.innerHTML = voices.map(v => `<option value="${esc(v.name)}" ${v.name === db.settings.voice ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})${v.localService ? '' : ' · online'}</option>`).join('');
+}
+function cardHtml() {
+  const p = curPhrase();
+  if (!p) {
+    if (!T.queue.length) return `<div class="done"><h2>No phrases to train</h2><p class="muted">All phrases in this set are mastered. Turn on “Include mastered” to repeat them.</p></div>`;
+    return `<div class="done"><h2>Done!</h2><p class="muted">You went through all ${T.queue.length} phrases.</p><p><button class="btn dark" data-act="t-restart">Start again</button></p></div>`;
+  }
+  return `<div class="row between sm"><span class="badge b-${p.status}">${STATUS_LABEL[p.status]}</span><span class="pos">${T.idx + 1} / ${T.queue.length}</span><span class="rep">Repeated ${p.repeatCount} / ${p.repeatTarget}</span></div>
+    <div class="t-en">${esc(p.textEn)}</div>${p.translationRu ? `<div class="t-ru">${esc(p.translationRu)}</div>` : ''}${p.noteRu ? `<div class="t-note">${esc(p.noteRu)}</div>` : ''}`;
+}
+const effReps = () => Math.max(1, parseInt(db.settings.reps, 10) || 10);
+const effPause = () => { const n = Number(db.settings.pause); return n > 0 ? n : 4; };
+function controlsHtml() {
+  const p = curPhrase();
+  const masterBtn = p ? (p.status === 'mastered'
+    ? `<button class="btn ghost big" data-act="t-unmaster">Unmark mastered</button>`
+    : `<button class="btn green big" data-act="t-mastered">Mastered</button>`) : '';
+  if (T.hf.active) {
+    return `<div class="hf"><div class="hfstatus">${T.hf.paused ? 'Paused' : 'Hands-free'} · repeat ${Math.min(T.hf.count + (T.hf.paused ? 0 : 1), effReps())} of ${effReps()} · pause ${effPause()}s</div>
+      <div class="controls"><div class="row">${T.hf.paused ? '<button class="btn primary big" data-act="hf-resume">▶ Resume</button>' : '<button class="btn dark big" data-act="hf-pause">❚❚ Pause</button>'}
+        <button class="btn ghost big" data-act="hf-skip">Skip ⏭</button></div>
+        <div class="row"><button class="btn ghost big" data-act="hf-again">↻ This phrase again</button>${masterBtn}</div>
+        <button class="btn ghost danger" data-act="hf-stop">■ Stop hands-free</button></div></div>`;
+  }
+  const manual = p ? `<div class="row"><button class="btn dark big" data-act="t-play">▶ Play</button><button class="btn primary big" data-act="t-again">↻ Again (+1)</button></div>
+    <div class="row"><button class="btn ghost big" data-act="t-prev" ${T.idx === 0 ? 'disabled' : ''}>← Prev</button><button class="btn ghost big" data-act="t-next">Next →</button></div>
+    <div class="row">${masterBtn}</div>` : '';
+  const s = db.settings;
+  const custReps = ![3, 5, 10, 15, 20].includes(effReps()), custPause = ![2, 3, 5, 7].includes(effPause());
+  const hfCfg = T.showHf ? `<div class="hf"><b>Hands-free mode</b><p class="muted sm">Plays each phrase several times with a pause, then moves on through the whole set in order.</p>
+      <div class="lbl">Repeats per phrase</div><div class="seg">${[3, 5, 10, 15, 20].map(n => `<button class="chip ${effReps() === n ? 'on' : ''}" data-act="hf-reps" data-v="${n}">${n}</button>`).join('')}
+        <input type="number" min="1" max="100" placeholder="other" data-change="hf-reps-custom" value="${custReps ? effReps() : ''}"></div>
+      <div class="lbl">Pause after each repeat (seconds)</div><div class="seg">${[2, 3, 5, 7].map(n => `<button class="chip ${effPause() === n ? 'on' : ''}" data-act="hf-pause-set" data-v="${n}">${n}</button>`).join('')}
+        <input type="number" min="0.5" max="60" step="0.5" placeholder="other" data-change="hf-pause-custom" value="${custPause ? effPause() : ''}"></div>
+      <div class="lbl">When the set ends</div><div class="seg"><button class="chip ${s.end === 'repeat' ? 'on' : ''}" data-act="hf-end" data-v="repeat">Start over</button><button class="chip ${s.end === 'stop' ? 'on' : ''}" data-act="hf-end" data-v="stop">Stop</button></div>
+      <div class="row gap" style="margin-top:12px"><button class="btn ghost big" data-act="hf-toggle">Cancel</button><button class="btn primary big" data-act="hf-start" ${T.queue.length ? '' : 'disabled'}>▶ Start</button></div></div>`
+    : `<button class="btn ghost" data-act="hf-toggle" ${T.queue.length ? '' : 'disabled'}>🎧 Hands-free mode</button>`;
+  return `<div class="controls">${manual}${hfCfg}</div>`;
+}
+function updateTrain() {
+  if (!T) return;
+  const c = $('#tcard'), k = $('#tcontrols'); if (!c || !k) return;
+  c.innerHTML = cardHtml(); k.innerHTML = controlsHtml();
+}
+function leaveTraining() { if (T) { hfStop(true); T = null; } }
+function goToPhraseInQueue(pid) {
+  if (!T) return;
+  let i = T.queue.indexOf(pid);
+  if (i < 0) { T.queue.splice(T.idx, 0, pid); i = T.idx; }
+  T.idx = i; T.finished = false;
+}
+function manualNext(autoplay) {
+  if (T.idx < T.queue.length - 1) T.idx++; else T.finished = true;
+  updateTrain();
+  const p = curPhrase();
+  if (autoplay && p) setTimeout(() => { if (T && curPhrase() === p && !T.hf.active) speak(p.textEn); }, 250);
+}
+function markMastered() {
+  const p = curPhrase(); if (!p) return;
+  const prev = p.status, wasHf = T.hf.active;
+  p.status = 'mastered'; save();
+  toast('Marked as mastered', () => {
+    p.status = prev; save();
+    if (T && !T.hf.active) { goToPhraseInQueue(p.id); updateTrain(); } else if (T) updateTrain();
+  });
+  if (wasHf) hfSkip(); else manualNext(true);
+}
+/* hands-free: the queue is fixed when it starts and is walked strictly in order */
+function hfStart() {
+  stopSpeech();
+  rebuildQueue();
+  if (!T.queue.length) { updateTrain(); return; }
+  if (T.finished) { T.idx = 0; T.finished = false; }
+  T.hf = { active: true, paused: false, count: 0 };
+  T.showHf = false;
+  save(); requestWake(); hfCycle();
+}
+function hfCycle() {
+  if (!T || !T.hf.active || T.hf.paused) return;
+  const p = curPhrase();
+  if (!p) { hfEnd(); return; }
+  updateTrain();
+  speak(p.textEn, () => {
+    if (!T || !T.hf.active || T.hf.paused) return;
+    addRepeat(p);
+    T.hf.count++;
+    updateTrain();
+    T.timer = setTimeout(() => {
+      T.timer = null;
+      if (!T || !T.hf.active || T.hf.paused) return;
+      if (T.hf.count >= effReps()) {
+        T.hf.count = 0;
+        if (!hfAdvance()) { hfEnd(); return; }
+      }
+      hfCycle();
+    }, effPause() * 1000);
+  });
+}
+function hfAdvance() {
+  if (T.idx < T.queue.length - 1) { T.idx++; return true; }
+  if (db.settings.end === 'repeat') { T.idx = 0; return true; }
+  return false;
+}
+function hfEnd() { hfStop(); T.finished = true; updateTrain(); }
+function hfStop(silent) {
+  if (!T) return;
+  T.hf.active = false; T.hf.paused = false; T.hf.count = 0;
+  clearTimeout(T.timer); T.timer = null;
+  stopSpeech(); releaseWake();
+  if (!silent) updateTrain();
+}
+function hfPause() { T.hf.paused = true; clearTimeout(T.timer); T.timer = null; stopSpeech(); updateTrain(); }
+function hfResume() { T.hf.paused = false; requestWake(); hfCycle(); }
+function hfSkip() {
+  clearTimeout(T.timer); T.timer = null; stopSpeech(); T.hf.count = 0;
+  if (!hfAdvance()) { hfEnd(); return; }
+  if (T.hf.paused) updateTrain(); else hfCycle();
+}
+function hfAgain() { clearTimeout(T.timer); T.timer = null; stopSpeech(); T.hf.count = 0; if (T.hf.paused) updateTrain(); else hfCycle(); }
+
+/* ---------- actions ---------- */
+const ACTIONS = {
+  'overlay': (el, e) => { if (e.target === el) closeModal(); },
+  'close-modal': () => closeModal(),
+  'home': () => go('#/'),
+  'new-set': () => setForm(null),
+  'edit-set': el => setForm(getSet(el.dataset.id)),
+  'del-set': el => {
+    const s = getSet(el.dataset.id); if (!s) return;
+    if (!confirm(`Delete the set "${s.title}" with ${s.phrases.length} phrases? This cannot be undone.`)) return;
+    db.sets = db.sets.filter(x => x !== s); save(); rerender();
+  },
+  'open-set': el => { setFilter = 'all'; go('#/set/' + encodeURIComponent(el.dataset.id)); },
+  'export': () => exportData(),
+  'import': () => $('#file-input').click(),
+  'filter': el => { setFilter = el.dataset.f; rerender(); },
+  'add-phrase': () => phraseForm(getSet(route().id), null),
+  'bulk': () => bulkForm(getSet(route().id)),
+  'edit-phrase': el => { const f = findPhrase(el.dataset.pid); if (f) phraseForm(f.set, f.phrase); },
+  'del-phrase': el => {
+    const f = findPhrase(el.dataset.pid); if (!f) return;
+    const i = f.set.phrases.indexOf(f.phrase);
+    f.set.phrases.splice(i, 1); save(); rerender();
+    toast('Phrase deleted', () => { f.set.phrases.splice(i, 0, f.phrase); save(); rerender(); });
+  },
+  'say': el => {
+    const f = findPhrase(el.dataset.pid); if (!f) return;
+    if (speakingPid === f.phrase.id) { stopSpeech(); speakingPid = null; document.querySelectorAll('.play.on').forEach(b => b.classList.remove('on')); return; }
+    document.querySelectorAll('.play.on').forEach(b => b.classList.remove('on'));
+    speakingPid = f.phrase.id; el.classList.add('on');
+    speak(f.phrase.textEn, () => { if (speakingPid === f.phrase.id) speakingPid = null; el.classList.remove('on'); });
+  },
+  'train': el => go('#/train/' + encodeURIComponent(el.dataset.id)),
+  'listen-all': el => go('#/train/' + encodeURIComponent(el.dataset.id) + '/hf'),
+  'back-to-set': () => go('#/set/' + encodeURIComponent(T ? T.setId : route().id)),
+  'rate': el => { db.settings.rate = Number(el.dataset.v); save(); document.querySelectorAll('[data-act="rate"]').forEach(b => b.classList.toggle('on', b === el)); },
+  't-play': () => { const p = curPhrase(); if (p) speak(p.textEn); },
+  't-again': () => { const p = curPhrase(); if (!p) return; speak(p.textEn); addRepeat(p); updateTrain(); },
+  't-next': () => manualNext(true),
+  't-prev': () => { if (T.idx > 0) { T.idx--; T.finished = false; updateTrain(); const p = curPhrase(); if (p) speak(p.textEn); } },
+  't-mastered': () => markMastered(),
+  't-unmaster': () => { const p = curPhrase(); if (!p) return; p.status = statusWithoutMastered(p); save(); updateTrain(); toast('Back in training'); },
+  't-restart': () => { T.finished = false; rebuildQueue(); T.idx = 0; updateTrain(); },
+  'hf-toggle': () => { T.showHf = !T.showHf; updateTrain(); },
+  'hf-reps': el => { db.settings.reps = Number(el.dataset.v); save(); updateTrain(); },
+  'hf-pause-set': el => { db.settings.pause = Number(el.dataset.v); save(); updateTrain(); },
+  'hf-end': el => { db.settings.end = el.dataset.v; save(); updateTrain(); },
+  'hf-start': () => hfStart(),
+  'hf-pause': () => hfPause(),
+  'hf-resume': () => hfResume(),
+  'hf-skip': () => hfSkip(),
+  'hf-again': () => hfAgain(),
+  'hf-stop': () => hfStop()
+};
+const CHANGES = {
+  'status': el => {
+    const f = findPhrase(el.dataset.pid); if (!f) return;
+    const prev = f.phrase.status; f.phrase.status = el.value; save(); rerender();
+    toast(`Status: ${STATUS_LABEL[el.value]}`, () => { f.phrase.status = prev; save(); rerender(); });
+  },
+  'voice': el => { db.settings.voice = el.value; save(); },
+  'incl': el => { db.settings.includeMastered = el.checked; save(); if (T) { rebuildQueue(); if (T.hf.active && !T.queue.length) hfEnd(); else updateTrain(); } },
+  'hf-reps-custom': el => { const n = parseInt(el.value, 10); if (n >= 1 && n <= 100) { db.settings.reps = n; save(); setTimeout(updateTrain, 0); } },
+  'hf-pause-custom': el => { const n = Number(el.value); if (n >= 0.5 && n <= 60) { db.settings.pause = n; save(); setTimeout(updateTrain, 0); } }
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const fn = ACTIONS[el.dataset.act]; if (!fn) return;
+  if (el.tagName === 'BUTTON' && el.type === 'submit' && el.closest('form')) return;
+  fn(el, e);
+});
+document.addEventListener('change', e => {
+  const el = e.target.closest('[data-change]'); if (!el) return;
+  const fn = CHANGES[el.dataset.change]; if (fn) fn(el, e);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+window.addEventListener('storage', e => { if (e.key === STORE_KEY && !T) { db = loadDb(); rerender(); } });
+
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+render();
+</script>
+</body>
+</html>
