@@ -94,6 +94,8 @@ textarea{resize:vertical}
 .t-ru{text-align:center;color:var(--muted);font-size:17px}
 .t-note{text-align:center;color:var(--muted);font-style:italic;font-size:14px;margin-top:8px}
 .done{text-align:center}
+.t-answer{text-align:center;font-size:22px;font-weight:700;color:var(--green);margin-top:14px;word-break:break-word}
+.t-hidden{text-align:center;color:var(--muted);font-style:italic;margin-top:14px}
 .controls{display:flex;flex-direction:column;gap:10px;margin-top:14px}
 .controls .row{gap:10px}
 .hf{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:4px}
@@ -114,7 +116,8 @@ const STORE_KEY = 'ipt2-data';
 const STATUSES = ['new', 'training', 'almost_known', 'mastered'];
 const STATUS_LABEL = { new: 'New', training: 'Training', almost_known: 'Almost known', mastered: 'Mastered' };
 const DIFFS = ['hard', 'medium', 'easy'];
-const DEFAULT_SETTINGS = { voice: '', rate: 0.95, reps: 10, pause: 4, end: 'repeat', includeMastered: false };
+const DEFAULT_SETTINGS = { voice: '', ruVoice: '', rate: 0.95, reps: 10, pause: 4, end: 'repeat', includeMastered: false, direction: 'en-ru', shuffle: false, think: 5, enPlays: 1, gap: 3 };
+const RU = () => db.settings.direction === 'ru-en';
 const SPEEDS = [{ label: 'Slow', value: 0.8 }, { label: 'Normal', value: 0.95 }, { label: 'Fast', value: 1.05 }];
 
 const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -190,29 +193,38 @@ const synth = window.speechSynthesis || null;
 let voices = [];
 let speakToken = 0;
 let speakingPid = null;
+let ruVoices = [];
+function pickVoice(list, pref) {
+  return pref.map(n => list.find(x => x.name.toLowerCase().includes(n) && x.localService)).find(Boolean) || list.find(x => x.localService) || list[0];
+}
 function loadVoices() {
   if (!synth) return;
-  voices = synth.getVoices().filter(v => /^en/i.test(v.lang));
+  const all = synth.getVoices();
+  voices = all.filter(v => /^en/i.test(v.lang));
+  ruVoices = all.filter(v => /^ru/i.test(v.lang));
+  let changed = false;
   if (voices.length && !voices.find(v => v.name === db.settings.voice)) {
-    const pref = ['samantha', 'daniel', 'karen', 'moira', 'serena', 'tessa', 'google uk english', 'google us english'];
-    const v = pref.map(n => voices.find(x => x.name.toLowerCase().includes(n) && x.localService)).find(Boolean)
-      || voices.find(x => x.localService) || voices[0];
-    db.settings.voice = v.name; save();
+    db.settings.voice = pickVoice(voices, ['daniel', 'samantha', 'karen', 'moira', 'serena', 'tessa', 'google uk english', 'google us english']).name; changed = true;
   }
+  if (ruVoices.length && !ruVoices.find(v => v.name === db.settings.ruVoice)) {
+    db.settings.ruVoice = pickVoice(ruVoices, ['milena', 'yuri', 'katya', 'google']).name; changed = true;
+  }
+  if (changed) save();
   refreshVoiceSelect();
 }
 if (synth) {
   loadVoices();
   if (synth.addEventListener) synth.addEventListener('voiceschanged', loadVoices); else synth.onvoiceschanged = loadVoices;
 }
-function speak(text, onEnd) {
+function speak(text, onEnd, lang) {
   if (!synth) { if (onEnd) setTimeout(onEnd, 1200); return; }
   const my = ++speakToken;
   const busy = synth.speaking || synth.pending;
   synth.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  const v = voices.find(x => x.name === db.settings.voice);
-  if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-GB'; }
+  const isRu = lang === 'ru';
+  const v = isRu ? ruVoices.find(x => x.name === db.settings.ruVoice) : voices.find(x => x.name === db.settings.voice);
+  if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = isRu ? 'ru-RU' : 'en-GB'; }
   u.rate = Number(db.settings.rate) || 0.95;
   let done = false, fallback = null;
   const finish = () => {
@@ -446,11 +458,14 @@ $('#file-input').addEventListener('change', e => { const f = e.target.files[0]; 
 let T = null; // session: { setId, queue:[ids], idx, finished, showHf, hf:{active,paused,count}, timer }
 function sortForTraining(phrases, includeMastered) {
   const so = { new: 0, training: 1, almost_known: 2, mastered: 3 }, dO = { hard: 0, medium: 1, easy: 2 };
-  return phrases.map((p, i) => ({ p, i }))
-    .filter(x => includeMastered || x.p.status !== 'mastered')
+  const ids = phrases.map((p, i) => ({ p, i }))
+    .filter(x => (includeMastered || x.p.status !== 'mastered') && (!RU() || x.p.translationRu))
     .sort((a, b) => (so[a.p.status] - so[b.p.status]) || (dO[a.p.difficulty] - dO[b.p.difficulty]) || (a.i - b.i))
     .map(x => x.p.id);
+  if (db.settings.shuffle) shuffleArr(ids);
+  return ids;
 }
+function shuffleArr(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function curPhrase() {
   if (!T || T.finished) return null;
   const s = getSet(T.setId); const id = T.queue[T.idx];
@@ -458,7 +473,12 @@ function curPhrase() {
 }
 function rebuildQueue() {
   const cur = T.queue[T.idx];
-  T.queue = sortForTraining(getSet(T.setId).phrases, db.settings.includeMastered);
+  let q = sortForTraining(getSet(T.setId).phrases, db.settings.includeMastered);
+  if (db.settings.shuffle && T.queue.length) { // keep the already-shuffled order, append anything new
+    const valid = new Set(q), kept = T.queue.filter(id => valid.has(id)), keptSet = new Set(kept);
+    q = [...kept, ...q.filter(id => !keptSet.has(id))];
+  }
+  T.queue = q;
   const i = T.queue.indexOf(cur);
   T.idx = i >= 0 ? i : 0;
   if (i < 0 && T.hf) T.hf.count = 0;
@@ -470,6 +490,8 @@ function startTraining(s, openHf) {
   $('#app').innerHTML = `<div class="tbar"><button class="icon" title="Back" data-act="back-to-set">←</button><div class="title">${esc(s.title)}</div>
       <label class="inline sm" style="margin:0"><input type="checkbox" data-change="incl" ${db.settings.includeMastered ? 'checked' : ''}> Include mastered</label></div>
     <div class="settings">
+      <div class="seg"><span class="muted sm">Mode</span><button class="chip ${RU() ? '' : 'on'}" data-act="dir" data-v="en-ru">EN → RU</button><button class="chip ${RU() ? 'on' : ''}" data-act="dir" data-v="ru-en">RU → EN</button><button class="chip ${db.settings.shuffle ? 'on' : ''}" data-act="shuffle" id="shuffle-chip">⇄ Shuffle</button></div>
+      ${RU() ? '<select id="ruvoice" data-change="ruvoice" aria-label="Russian voice"></select>' : ''}
       <select id="voice" data-change="voice" aria-label="Voice"></select>
       <div class="seg"><span class="muted sm">Speed</span>${SPEEDS.map(o => `<button class="chip ${Number(db.settings.rate) === o.value ? 'on' : ''}" data-act="rate" data-v="${o.value}">${o.label}</button>`).join('')}</div>
     </div>
@@ -479,44 +501,67 @@ function startTraining(s, openHf) {
   updateTrain();
 }
 function refreshVoiceSelect() {
-  const sel = document.getElementById('voice'); if (!sel) return;
-  if (!synth) { sel.innerHTML = '<option>Speech is not supported in this browser</option>'; sel.disabled = true; return; }
-  if (!voices.length) { sel.innerHTML = '<option>Loading voices…</option>'; return; }
-  sel.innerHTML = voices.map(v => `<option value="${esc(v.name)}" ${v.name === db.settings.voice ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})${v.localService ? '' : ' · online'}</option>`).join('');
+  const fill = (sel, list, chosen, label) => {
+    if (!sel) return;
+    if (!synth) { sel.innerHTML = '<option>Speech is not supported in this browser</option>'; sel.disabled = true; return; }
+    if (!list.length) { sel.innerHTML = `<option>${label}: no voices found</option>`; return; }
+    sel.innerHTML = list.map(v => `<option value="${esc(v.name)}" ${v.name === chosen ? 'selected' : ''}>${label}: ${esc(v.name)} (${esc(v.lang)})${v.localService ? '' : ' · online'}</option>`).join('');
+  };
+  fill(document.getElementById('voice'), voices, db.settings.voice, 'English');
+  fill(document.getElementById('ruvoice'), ruVoices, db.settings.ruVoice, 'Russian');
 }
 function cardHtml() {
   const p = curPhrase();
   if (!p) {
-    if (!T.queue.length) return `<div class="done"><h2>No phrases to train</h2><p class="muted">All phrases in this set are mastered. Turn on “Include mastered” to repeat them.</p></div>`;
+    if (!T.queue.length) return `<div class="done"><h2>No phrases to train</h2><p class="muted">${RU() ? 'RU → EN needs phrases with a translation, and mastered ones are hidden unless “Include mastered” is on.' : 'All phrases in this set are mastered. Turn on “Include mastered” to repeat them.'}</p></div>`;
     return `<div class="done"><h2>Done!</h2><p class="muted">You went through all ${T.queue.length} phrases.</p><p><button class="btn dark" data-act="t-restart">Start again</button></p></div>`;
   }
-  return `<div class="row between sm"><span class="badge b-${p.status}">${STATUS_LABEL[p.status]}</span><span class="pos">${T.idx + 1} / ${T.queue.length}</span><span class="rep">Repeated ${p.repeatCount} / ${p.repeatTarget}</span></div>
+  const head = `<div class="row between sm"><span class="badge b-${p.status}">${STATUS_LABEL[p.status]}</span><span class="pos">${T.idx + 1} / ${T.queue.length}</span><span class="rep">Repeated ${p.repeatCount} / ${p.repeatTarget}</span></div>`;
+  if (RU()) return `${head}<div class="t-en">${esc(p.translationRu)}</div>${T.revealed
+    ? `<div class="t-answer">${esc(p.textEn)}</div>${p.noteRu ? `<div class="t-note">${esc(p.noteRu)}</div>` : ''}`
+    : '<div class="t-hidden">Say it in English…</div>'}`;
+  return `${head}
     <div class="t-en">${esc(p.textEn)}</div>${p.translationRu ? `<div class="t-ru">${esc(p.translationRu)}</div>` : ''}${p.noteRu ? `<div class="t-note">${esc(p.noteRu)}</div>` : ''}`;
 }
 const effReps = () => Math.max(1, parseInt(db.settings.reps, 10) || 10);
 const effPause = () => { const n = Number(db.settings.pause); return n > 0 ? n : 4; };
+const effThink = () => { const n = Number(db.settings.think); return n > 0 ? n : 5; };
+const effPlays = () => Math.min(3, Math.max(1, parseInt(db.settings.enPlays, 10) || 1));
+const effGap = () => { const n = Number(db.settings.gap); return n > 0 ? n : 3; };
+const HF_STAGE = { ask: 'Listen…', think: 'Your turn: say it in English', answer: 'Check' };
+function speakPrompt(p) { if (RU()) speak(p.translationRu, null, 'ru'); else speak(p.textEn); }
 function controlsHtml() {
   const p = curPhrase();
   const masterBtn = p ? (p.status === 'mastered'
     ? `<button class="btn ghost big" data-act="t-unmaster">Unmark mastered</button>`
     : `<button class="btn green big" data-act="t-mastered">Mastered</button>`) : '';
   if (T.hf.active) {
-    return `<div class="hf"><div class="hfstatus">${T.hf.paused ? 'Paused' : 'Hands-free'} · repeat ${Math.min(T.hf.count + (T.hf.paused ? 0 : 1), effReps())} of ${effReps()} · pause ${effPause()}s</div>
+    const st = RU() ? `${T.hf.paused ? 'Paused' : (HF_STAGE[T.hf.stage] || 'Hands-free')} · phrase ${T.idx + 1} of ${T.queue.length}`
+      : `${T.hf.paused ? 'Paused' : 'Hands-free'} · repeat ${Math.min(T.hf.count + (T.hf.paused ? 0 : 1), effReps())} of ${effReps()} · pause ${effPause()}s`;
+    return `<div class="hf"><div class="hfstatus">${st}</div>
       <div class="controls"><div class="row">${T.hf.paused ? '<button class="btn primary big" data-act="hf-resume">▶ Resume</button>' : '<button class="btn dark big" data-act="hf-pause">❚❚ Pause</button>'}
         <button class="btn ghost big" data-act="hf-skip">Skip ⏭</button></div>
         <div class="row"><button class="btn ghost big" data-act="hf-again">↻ This phrase again</button>${masterBtn}</div>
         <button class="btn ghost danger" data-act="hf-stop">■ Stop hands-free</button></div></div>`;
   }
-  const manual = p ? `<div class="row"><button class="btn dark big" data-act="t-play">▶ Play</button><button class="btn primary big" data-act="t-again">↻ Again (+1)</button></div>
+  const manual = p ? `<div class="row">${RU()
+      ? `<button class="btn dark big" data-act="t-play">▶ Russian</button>${T.revealed ? '<button class="btn primary big" data-act="t-en">▶ English</button>' : '<button class="btn primary big" data-act="t-reveal">Show answer</button>'}`
+      : '<button class="btn dark big" data-act="t-play">▶ Play</button><button class="btn primary big" data-act="t-again">↻ Again (+1)</button>'}</div>
     <div class="row"><button class="btn ghost big" data-act="t-prev" ${T.idx === 0 ? 'disabled' : ''}>← Prev</button><button class="btn ghost big" data-act="t-next">Next →</button></div>
     <div class="row">${masterBtn}</div>` : '';
   const s = db.settings;
   const custReps = ![3, 5, 10, 15, 20].includes(effReps()), custPause = ![2, 3, 5, 7].includes(effPause());
   const hfCfg = T.showHf ? `<div class="hf"><b>Hands-free mode</b><p class="muted sm">Plays each phrase several times with a pause, then moves on through the whole set in order.</p>
+      ${RU() ? `<p class="muted sm" style="margin-top:-2px">RU → EN: Russian phrase → time to answer → English answer shown and spoken → next phrase.</p>
+      <div class="lbl">Time to answer (seconds)</div><div class="seg">${[3, 5, 7, 10].map(n => `<button class="chip ${effThink() === n ? 'on' : ''}" data-act="hf-think" data-v="${n}">${n}</button>`).join('')}
+        <input type="number" min="1" max="60" placeholder="other" data-change="hf-think-custom" value="${[3, 5, 7, 10].includes(effThink()) ? '' : effThink()}"></div>
+      <div class="lbl">English answer plays</div><div class="seg">${[1, 2, 3].map(n => `<button class="chip ${effPlays() === n ? 'on' : ''}" data-act="hf-plays" data-v="${n}">${n}×</button>`).join('')}</div>
+      <div class="lbl">Pause before the next phrase (seconds)</div><div class="seg">${[2, 3, 5].map(n => `<button class="chip ${effGap() === n ? 'on' : ''}" data-act="hf-gap" data-v="${n}">${n}</button>`).join('')}</div>` : `
       <div class="lbl">Repeats per phrase</div><div class="seg">${[3, 5, 10, 15, 20].map(n => `<button class="chip ${effReps() === n ? 'on' : ''}" data-act="hf-reps" data-v="${n}">${n}</button>`).join('')}
         <input type="number" min="1" max="100" placeholder="other" data-change="hf-reps-custom" value="${custReps ? effReps() : ''}"></div>
       <div class="lbl">Pause after each repeat (seconds)</div><div class="seg">${[2, 3, 5, 7].map(n => `<button class="chip ${effPause() === n ? 'on' : ''}" data-act="hf-pause-set" data-v="${n}">${n}</button>`).join('')}
         <input type="number" min="0.5" max="60" step="0.5" placeholder="other" data-change="hf-pause-custom" value="${custPause ? effPause() : ''}"></div>
+      `}
       <div class="lbl">When the set ends</div><div class="seg"><button class="chip ${s.end === 'repeat' ? 'on' : ''}" data-act="hf-end" data-v="repeat">Start over</button><button class="chip ${s.end === 'stop' ? 'on' : ''}" data-act="hf-end" data-v="stop">Stop</button></div>
       <div class="row gap" style="margin-top:12px"><button class="btn ghost big" data-act="hf-toggle">Cancel</button><button class="btn primary big" data-act="hf-start" ${T.queue.length ? '' : 'disabled'}>▶ Start</button></div></div>`
     : `<button class="btn ghost" data-act="hf-toggle" ${T.queue.length ? '' : 'disabled'}>🎧 Hands-free mode</button>`;
@@ -525,6 +570,8 @@ function controlsHtml() {
 function updateTrain() {
   if (!T) return;
   const c = $('#tcard'), k = $('#tcontrols'); if (!c || !k) return;
+  const cp = curPhrase();
+  if (cp && T.shownId !== cp.id) { T.shownId = cp.id; T.revealed = !RU(); }
   c.innerHTML = cardHtml(); k.innerHTML = controlsHtml();
 }
 function leaveTraining() { if (T) { hfStop(true); T = null; } }
@@ -538,7 +585,7 @@ function manualNext(autoplay) {
   if (T.idx < T.queue.length - 1) T.idx++; else T.finished = true;
   updateTrain();
   const p = curPhrase();
-  if (autoplay && p) setTimeout(() => { if (T && curPhrase() === p && !T.hf.active) speak(p.textEn); }, 250);
+  if (autoplay && p) setTimeout(() => { if (T && curPhrase() === p && !T.hf.active) speakPrompt(p); }, 250);
 }
 function markMastered() {
   const p = curPhrase(); if (!p) return;
@@ -560,8 +607,38 @@ function hfStart() {
   T.showHf = false;
   save(); requestWake(); hfCycle();
 }
+const hfAlive = () => T && T.hf.active && !T.hf.paused;
+function hfCycleRu() {
+  const p = curPhrase();
+  if (!p) { hfEnd(); return; }
+  T.shownId = p.id; T.revealed = false; T.hf.stage = 'ask'; updateTrain();
+  speak(p.translationRu, () => {
+    if (!hfAlive()) return;
+    T.hf.stage = 'think'; updateTrain();
+    T.timer = setTimeout(() => {
+      T.timer = null;
+      if (!hfAlive()) return;
+      T.revealed = true; T.hf.stage = 'answer'; updateTrain();
+      let plays = 0;
+      const playEn = () => speak(p.textEn, () => {
+        if (!hfAlive()) return;
+        plays++;
+        if (plays < effPlays()) { T.timer = setTimeout(() => { T.timer = null; if (hfAlive()) playEn(); }, 1200); return; }
+        addRepeat(p); updateTrain();
+        T.timer = setTimeout(() => {
+          T.timer = null;
+          if (!hfAlive()) return;
+          if (!hfAdvance()) { hfEnd(); return; }
+          hfCycle();
+        }, effGap() * 1000);
+      }, 'en');
+      playEn();
+    }, effThink() * 1000);
+  }, 'ru');
+}
 function hfCycle() {
   if (!T || !T.hf.active || T.hf.paused) return;
+  if (RU()) { hfCycleRu(); return; }
   const p = curPhrase();
   if (!p) { hfEnd(); return; }
   updateTrain();
@@ -583,7 +660,14 @@ function hfCycle() {
 }
 function hfAdvance() {
   if (T.idx < T.queue.length - 1) { T.idx++; return true; }
-  if (db.settings.end === 'repeat') { T.idx = 0; return true; }
+  if (db.settings.end === 'repeat') {
+    if (db.settings.shuffle && T.queue.length > 1) {
+      const last = T.queue[T.idx];
+      T.queue = sortForTraining(getSet(T.setId).phrases, db.settings.includeMastered);
+      if (T.queue[0] === last) T.queue.push(T.queue.shift()); // never the same phrase twice in a row
+    }
+    T.idx = 0; return true;
+  }
   return false;
 }
 function hfEnd() { hfStop(); T.finished = true; updateTrain(); }
@@ -639,10 +723,28 @@ const ACTIONS = {
   'listen-all': el => go('#/train/' + encodeURIComponent(el.dataset.id) + '/hf'),
   'back-to-set': () => go('#/set/' + encodeURIComponent(T ? T.setId : route().id)),
   'rate': el => { db.settings.rate = Number(el.dataset.v); save(); document.querySelectorAll('[data-act="rate"]').forEach(b => b.classList.toggle('on', b === el)); },
-  't-play': () => { const p = curPhrase(); if (p) speak(p.textEn); },
+  't-play': () => { const p = curPhrase(); if (p) speakPrompt(p); },
+  't-en': () => { const p = curPhrase(); if (p) speak(p.textEn); },
+  't-reveal': () => { const p = curPhrase(); if (!p) return; T.revealed = true; addRepeat(p); updateTrain(); speak(p.textEn); },
+  'dir': el => { if (db.settings.direction === el.dataset.v) return; const keep = T && T.showHf; leaveTraining(); stopSpeech(); db.settings.direction = el.dataset.v; save(); const s = getSet(route().id); if (s) startTraining(s, keep); },
+  'shuffle': el => {
+    db.settings.shuffle = !db.settings.shuffle; save(); el.classList.toggle('on', db.settings.shuffle);
+    if (!T) return;
+    const cur = T.finished ? null : T.queue[T.idx];
+    T.queue = sortForTraining(getSet(T.setId).phrases, db.settings.includeMastered);
+    if (db.settings.shuffle) { // keep the current phrase, shuffle everything after it
+      const i = T.queue.indexOf(cur); if (i > 0) { T.queue.splice(i, 1); T.queue.unshift(cur); }
+      T.idx = 0;
+    } else { const i = T.queue.indexOf(cur); T.idx = i >= 0 ? i : 0; }
+    updateTrain();
+    toast(db.settings.shuffle ? 'Random order' : 'Normal order');
+  },
+  'hf-think': el => { db.settings.think = Number(el.dataset.v); save(); updateTrain(); },
+  'hf-plays': el => { db.settings.enPlays = Number(el.dataset.v); save(); updateTrain(); },
+  'hf-gap': el => { db.settings.gap = Number(el.dataset.v); save(); updateTrain(); },
   't-again': () => { const p = curPhrase(); if (!p) return; speak(p.textEn); addRepeat(p); updateTrain(); },
   't-next': () => manualNext(true),
-  't-prev': () => { if (T.idx > 0) { T.idx--; T.finished = false; updateTrain(); const p = curPhrase(); if (p) speak(p.textEn); } },
+  't-prev': () => { if (T.idx > 0) { T.idx--; T.finished = false; updateTrain(); const p = curPhrase(); if (p) speakPrompt(p); } },
   't-mastered': () => markMastered(),
   't-unmaster': () => { const p = curPhrase(); if (!p) return; p.status = statusWithoutMastered(p); save(); updateTrain(); toast('Back in training'); },
   't-restart': () => { T.finished = false; rebuildQueue(); T.idx = 0; updateTrain(); },
@@ -664,6 +766,8 @@ const CHANGES = {
     toast(`Status: ${STATUS_LABEL[el.value]}`, () => { f.phrase.status = prev; save(); rerender(); });
   },
   'voice': el => { db.settings.voice = el.value; save(); },
+  'ruvoice': el => { db.settings.ruVoice = el.value; save(); },
+  'hf-think-custom': el => { const n = Number(el.value); if (n >= 1 && n <= 60) { db.settings.think = n; save(); setTimeout(updateTrain, 0); } },
   'incl': el => { db.settings.includeMastered = el.checked; save(); if (T) { rebuildQueue(); if (T.hf.active && !T.queue.length) hfEnd(); else updateTrain(); } },
   'hf-reps-custom': el => { const n = parseInt(el.value, 10); if (n >= 1 && n <= 100) { db.settings.reps = n; save(); setTimeout(updateTrain, 0); } },
   'hf-pause-custom': el => { const n = Number(el.value); if (n >= 0.5 && n <= 60) { db.settings.pause = n; save(); setTimeout(updateTrain, 0); } }
